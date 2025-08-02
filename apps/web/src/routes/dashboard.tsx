@@ -1,18 +1,29 @@
-import { authClient } from "@/lib/auth-client";
-import { trpc } from "@/utils/trpc";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { useNavigate } from "react-router";
+import { AppSidebar } from '@/components/app-sidebar';
+import { Separator } from '@/components/ui/separator';
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
+import { authClient } from '@/lib/auth-client';
+import { Outlet, useNavigate } from 'react-router';
+import { useEffect } from 'react';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 
-export default function Dashboard() {
+export default function DashboardLayout() {
   const { data: session, isPending } = authClient.useSession();
   const navigate = useNavigate();
 
-  const privateData = useQuery(trpc.privateData.queryOptions());
-
   useEffect(() => {
     if (!session && !isPending) {
-      navigate("/login");
+      navigate('/login');
     }
   }, [session, isPending]);
 
@@ -21,10 +32,33 @@ export default function Dashboard() {
   }
 
   return (
-    <div>
-      <h1>Dashboard</h1>
-      <p>Welcome {session?.user.name}</p>
-      <p>privateData: {privateData.data?.message}</p>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator
+              orientation="vertical"
+              className="mr-2 data-[orientation=vertical]:h-4"
+            />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbLink href="#">
+                    Building Your Application
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="hidden md:block" />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+        </header>
+        <Outlet />
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

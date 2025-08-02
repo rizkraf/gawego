@@ -53,10 +53,7 @@ export default function App() {
         disableTransitionOnChange
         storageKey="vite-ui-theme"
       >
-        <div className="grid grid-rows-[auto_1fr] h-svh">
-          <Header />
-          <Outlet />
-        </div>
+        <Outlet />
         <Toaster richColors />
       </ThemeProvider>
       <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
