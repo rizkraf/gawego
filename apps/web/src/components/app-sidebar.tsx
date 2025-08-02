@@ -28,12 +28,12 @@ const data = {
     },
     {
       title: "Lamaran",
-      url: "/application",
+      url: "/dashboard/application",
       icon: SendHorizontal,
     },
     {
       title: "Pengaturan",
-      url: "/settings",
+      url: "/dashboard/settings",
       icon: Settings,
     }
   ],

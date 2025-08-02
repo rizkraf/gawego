@@ -1,15 +1,8 @@
-import { AppSidebar } from '@/components/app-sidebar';
-import { Separator } from '@/components/ui/separator';
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from '@/components/ui/sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { authClient } from '@/lib/auth-client';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function DashboardLayout() {
+export default function Dashboard() {
   const { data: session, isPending } = authClient.useSession();
 
   return (
