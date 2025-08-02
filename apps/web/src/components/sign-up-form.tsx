@@ -1,160 +1,58 @@
-import { authClient } from "@/lib/auth-client";
-import { useForm } from "@tanstack/react-form";
-import { useNavigate } from "react-router";
-import { toast } from "sonner";
-import z from "zod";
-import Loader from "./loader";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import { authClient } from '@/lib/auth-client';
+import { Link, useNavigate } from 'react-router';
+import Loader from './loader';
+import { Button } from './ui/button';
+import GoogleIcon from './icon/google';
 
-export default function SignUpForm({
-  onSwitchToSignIn,
-}: {
-  onSwitchToSignIn: () => void;
-}) {
-  const navigate = useNavigate();
+export default function SignUpForm() {
   const { isPending } = authClient.useSession();
 
-  const form = useForm({
-    defaultValues: {
-      email: "",
-      password: "",
-      name: "",
-    },
-    onSubmit: async ({ value }) => {
-      await authClient.signUp.email(
-        {
-          email: value.email,
-          password: value.password,
-          name: value.name,
-        },
-        {
-          onSuccess: () => {
-            navigate("/dashboard");
-            toast.success("Sign up successful");
-          },
-          onError: (error) => {
-            toast.error(error.error.message || error.error.statusText);
-          },
-        }
-      );
-    },
-    validators: {
-      onSubmit: z.object({
-        name: z.string().min(2, "Name must be at least 2 characters"),
-        email: z.email("Invalid email address"),
-        password: z.string().min(8, "Password must be at least 8 characters"),
-      }),
-    },
-  });
+  const signIn = async () => {
+    await authClient.signIn.social({
+      provider: 'google',
+      callbackURL: `${import.meta.env.VITE_BASE_URL}/dashboard`,
+    });
+  };
 
   if (isPending) {
     return <Loader />;
   }
 
   return (
-    <div className="mx-auto w-full mt-10 max-w-md p-6">
-      <h1 className="mb-6 text-center text-3xl font-bold">Create Account</h1>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          form.handleSubmit();
-        }}
-        className="space-y-4"
-      >
-        <div>
-          <form.Field name="name">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Name</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
-              </div>
-            )}
-          </form.Field>
-        </div>
-
-        <div>
-          <form.Field name="email">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Email</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="email"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
-              </div>
-            )}
-          </form.Field>
-        </div>
-
-        <div>
-          <form.Field name="password">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Password</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="password"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
-              </div>
-            )}
-          </form.Field>
-        </div>
-
-        <form.Subscribe>
-          {(state) => (
+    <section className="bg-linear-to-b from-muted to-background flex min-h-screen px-4 py-16 md:py-32">
+      <form className="max-w-92 m-auto h-fit w-full">
+        <div className="p-6">
+          <div>
+            <Link to="/mist" aria-label="go home"></Link>
+            <h1 className="mt-6 text-balance text-xl font-semibold">
+              <span className="text-muted-foreground">
+                Selamat datang ke Gawego!
+              </span>{' '}
+              Buat akun baru anda
+            </h1>
+          </div>
+          <div className="mt-6 space-y-2">
             <Button
-              type="submit"
+              type="button"
+              onClick={signIn}
+              variant="outline"
+              size="default"
               className="w-full"
-              disabled={!state.canSubmit || state.isSubmitting}
             >
-              {state.isSubmitting ? "Submitting..." : "Sign Up"}
+              <GoogleIcon />
+              <span>Google</span>
             </Button>
-          )}
-        </form.Subscribe>
+          </div>
+        </div>
+        <div className="px-6">
+          <p className="text-muted-foreground text-sm">
+            Sudah punya akun?
+            <Button asChild variant="link" className="px-2">
+              <Link to="/login">Masuk</Link>
+            </Button>
+          </p>
+        </div>
       </form>
-
-      <div className="mt-4 text-center">
-        <Button
-          variant="link"
-          onClick={onSwitchToSignIn}
-          className="text-indigo-600 hover:text-indigo-800"
-        >
-          Already have an account? Sign In
-        </Button>
-      </div>
-    </div>
+    </section>
   );
 }
