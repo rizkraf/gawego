@@ -18,6 +18,7 @@ import {
 import { KanbanColumn } from './kanban-column';
 import { JobCard } from './job-card';
 import { AddJobDialog } from './add-job-dialog';
+import { Skeleton } from './ui/skeleton';
 import { trpc } from '@/utils/trpc';
 import Loader from './loader';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -57,7 +58,11 @@ const statusColumns: { id: JobStatus; title: string; color: string }[] = [
   { id: 'withdrawn', title: 'Dibatalkan', color: 'bg-gray-50 border-gray-200' },
 ];
 
-export function JobKanbanBoard() {
+export function JobKanbanBoard({
+  isPending = false,
+}: {
+  isPending?: boolean;
+}) {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
 
   const sensors = useSensors(
@@ -227,10 +232,53 @@ export function JobKanbanBoard() {
 
   const activeJob = jobs.data?.find((job) => job.id.toString() === activeId);
 
-  if (jobs.isLoading) {
+  const JobCardSkeleton = () => (
+    <div className="p-4 bg-white rounded-lg border border-gray-200">
+      <div className="space-y-3">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-6 w-6" />
+          <div className="flex space-x-2">
+            <Skeleton className="h-6 w-6" />
+            <Skeleton className="h-6 w-6" />
+          </div>
+        </div>
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-4 w-1/3" />
+        </div>
+        <Skeleton className="h-3 w-3/4" />
+        <Skeleton className="h-3 w-1/2" />
+      </div>
+    </div>
+  );
+
+  // Skeleton component for kanban columns
+  const KanbanColumnSkeleton = ({ color }: { color: string }) => (
+    <div className={`p-4 rounded-lg border-2 ${color} min-h-[200px]`}>
+      <div className="mb-4">
+        <Skeleton className="h-5 w-24" />
+      </div>
+      <div className="space-y-3">
+        {[...Array(2)].map((_, index) => (
+          <JobCardSkeleton key={index} />
+        ))}
+      </div>
+    </div>
+  );
+
+  if (jobs.isLoading || isPending) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader />
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          {statusColumns.map((column) => (
+            <KanbanColumnSkeleton key={column.id} color={column.color} />
+          ))}
+        </div>
       </div>
     );
   }
