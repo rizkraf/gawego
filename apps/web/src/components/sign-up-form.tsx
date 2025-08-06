@@ -5,18 +5,12 @@ import { Button } from './ui/button';
 import GoogleIcon from './icon/google';
 
 export default function SignUpForm() {
-  const { isPending } = authClient.useSession();
-
   const signIn = async () => {
     await authClient.signIn.social({
       provider: 'google',
       callbackURL: `${import.meta.env.VITE_BASE_URL}/dashboard`,
     });
   };
-
-  if (isPending) {
-    return <Loader />;
-  }
 
   return (
     <section className="bg-linear-to-b from-muted to-background flex min-h-screen px-4 py-16 md:py-32">
