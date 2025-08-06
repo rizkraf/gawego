@@ -12,18 +12,14 @@ import {
   type UniqueIdentifier,
 } from '@dnd-kit/core';
 import {
-  SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  arrayMove,
 } from '@dnd-kit/sortable';
 import { KanbanColumn } from './kanban-column';
 import { JobCard } from './job-card';
 import { AddJobDialog } from './add-job-dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trpc } from '@/utils/trpc';
 import Loader from './loader';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 
 export type JobStatus =
@@ -41,6 +37,7 @@ export interface Job {
   status: JobStatus | null;
   appliedDate: string;
   jobPostUrl: string | null;
+  position: number;
   createdAt: string;
   updatedAt: string;
   notes: string | null;
@@ -77,6 +74,14 @@ export function JobKanbanBoard() {
     })
   );
 
+  const updatePositionsMutation = useMutation(
+    trpc.application.updatePositions.mutationOptions({
+      onSuccess: () => {
+        jobs.refetch();
+      },
+    })
+  );
+
   const handleJobUpdated = () => {
     jobs.refetch();
   };
@@ -98,6 +103,18 @@ export function JobKanbanBoard() {
       {} as Record<JobStatus, Job[]>
     );
   }, [jobs.data]);
+
+  // Sort jobs by position within each status
+  const sortedJobsByStatus = React.useMemo(() => {
+    const sorted: Record<JobStatus, Job[]> = {} as Record<JobStatus, Job[]>;
+
+    statusColumns.forEach(column => {
+      const columnJobs = (jobsByStatus as Record<JobStatus, Job[]>)[column.id] || [];
+      sorted[column.id] = columnJobs.sort((a: Job, b: Job) => (a.position || 0) - (b.position || 0));
+    });
+
+    return sorted;
+  }, [jobsByStatus]);
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(event.active.id);
@@ -123,23 +140,84 @@ export function JobKanbanBoard() {
 
     // Determine the new status
     let newStatus: JobStatus;
+    let targetIndex: number = -1;
 
     // If dropped on a column header or empty column
     if (statusColumns.some((col) => col.id === overId)) {
       newStatus = overId as JobStatus;
+      // Place at the end of the column
+      const columnJobs = sortedJobsByStatus[newStatus] || [];
+      targetIndex = columnJobs.length;
     } else {
-      // If dropped on another job, get that job's status
+      // If dropped on another job, get that job's status and position
       const targetJob = jobs.data?.find((job) => job.id.toString() === overId);
       if (!targetJob) return;
+
       newStatus = targetJob.status as JobStatus;
+      const columnJobs = sortedJobsByStatus[newStatus] || [];
+      targetIndex = columnJobs.findIndex(job => job.id.toString() === overId);
+
+      // If we're moving within the same column and to a lower position,
+      // we need to adjust the target index
+      if (draggedJob.status === newStatus && draggedJob.position < targetJob.position) {
+        targetIndex = targetIndex;
+      } else if (draggedJob.status === newStatus) {
+        targetIndex = targetIndex;
+      }
     }
 
-    // Update the job status if it's different
-    if (draggedJob.status !== newStatus) {
-      updateJobMutation.mutate({
-        id: draggedJob.id,
-        status: newStatus,
+    // Calculate new positions for affected jobs
+    const updates: { id: number; position: number; status?: JobStatus }[] = [];
+
+    if (draggedJob.status === newStatus) {
+      // Moving within the same column - reorder
+      const columnJobs = [...sortedJobsByStatus[newStatus]];
+      const oldIndex = columnJobs.findIndex(job => job.id === draggedJob.id);
+      const newIndex = targetIndex === -1 ? columnJobs.length - 1 : Math.min(targetIndex, columnJobs.length - 1);
+
+      if (oldIndex !== newIndex) {
+        // Reorder the array
+        const reorderedJobs = arrayMove(columnJobs, oldIndex, newIndex);
+
+        // Update positions for all jobs in this column
+        reorderedJobs.forEach((job, index) => {
+          updates.push({
+            id: job.id,
+            position: index + 1
+          });
+        });
+      }
+    } else {
+      // Moving to a different column
+      const sourceColumnJobs = [...sortedJobsByStatus[draggedJob.status as JobStatus]];
+      const targetColumnJobs = [...sortedJobsByStatus[newStatus]];
+
+      // Remove from source column and update positions
+      const updatedSourceJobs = sourceColumnJobs.filter(job => job.id !== draggedJob.id);
+      updatedSourceJobs.forEach((job, index) => {
+        updates.push({
+          id: job.id,
+          position: index + 1
+        });
       });
+
+      // Add to target column at the specified position
+      const insertIndex = targetIndex === -1 ? targetColumnJobs.length : Math.min(targetIndex, targetColumnJobs.length);
+      targetColumnJobs.splice(insertIndex, 0, { ...draggedJob, status: newStatus });
+
+      // Update positions for target column jobs
+      targetColumnJobs.forEach((job, index) => {
+        updates.push({
+          id: job.id,
+          position: index + 1,
+          status: job.id === draggedJob.id ? newStatus : undefined
+        });
+      });
+    }
+
+    // Apply all position updates
+    if (updates.length > 0) {
+      updatePositionsMutation.mutate(updates);
     }
 
     setActiveId(null);
@@ -175,7 +253,7 @@ export function JobKanbanBoard() {
               id={column.id}
               title={column.title}
               color={column.color}
-              jobs={(jobsByStatus as Record<JobStatus, Job[]>)[column.id] || []}
+              jobs={sortedJobsByStatus[column.id] || []}
               onJobUpdated={handleJobUpdated}
             />
           ))}
