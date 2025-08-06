@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -11,17 +11,17 @@ import {
   type DragStartEvent,
   type UniqueIdentifier,
 } from '@dnd-kit/core';
-import {
-  sortableKeyboardCoordinates,
-  arrayMove,
-} from '@dnd-kit/sortable';
+import { sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
 import { KanbanColumn } from './kanban-column';
 import { JobCard } from './job-card';
 import { AddJobDialog } from './add-job-dialog';
 import { Skeleton } from './ui/skeleton';
+import { Input } from './ui/input';
+import { Search, X } from 'lucide-react';
+import { Button } from './ui/button';
 import { trpc } from '@/utils/trpc';
-import Loader from './loader';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useDebounce } from '@/hooks/use-debounce';
 
 export type JobStatus =
   | 'applied'
@@ -54,17 +54,19 @@ const statusColumns: { id: JobStatus; title: string; color: string }[] = [
     color: 'bg-yellow-50 border-yellow-200',
   },
   { id: 'offering', title: 'Tawaran', color: 'bg-green-50 border-green-200' },
-  { id: 'accepted', title: 'Diterima', color: 'bg-purple-50 border-purple-200' },
+  {
+    id: 'accepted',
+    title: 'Diterima',
+    color: 'bg-purple-50 border-purple-200',
+  },
   { id: 'rejected', title: 'Ditolak', color: 'bg-red-50 border-red-200' },
   { id: 'withdrawn', title: 'Dibatalkan', color: 'bg-gray-50 border-gray-200' },
 ];
 
-export function JobKanbanBoard({
-  isPending = false,
-}: {
-  isPending?: boolean;
-}) {
+export function JobKanbanBoard({ isPending = false }: { isPending?: boolean }) {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -73,7 +75,11 @@ export function JobKanbanBoard({
     })
   );
 
-  const jobs = useQuery(trpc.application.getListByUser.queryOptions());
+  const jobs = useQuery(
+    trpc.application.getListByUser.queryOptions({
+      search: debouncedSearchTerm || undefined,
+    })
+  );
   const updateJobMutation = useMutation(
     trpc.application.update.mutationOptions({
       onSuccess: () => {
@@ -93,6 +99,17 @@ export function JobKanbanBoard({
   const handleJobUpdated = () => {
     jobs.refetch();
   };
+
+  const handleClearSearch = useCallback(() => {
+    setSearchTerm('');
+  }, []);
+
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchTerm(e.target.value);
+    },
+    []
+  );
 
   const jobsByStatus = React.useMemo(() => {
     if (!jobs.data) return {};
@@ -116,9 +133,12 @@ export function JobKanbanBoard({
   const sortedJobsByStatus = React.useMemo(() => {
     const sorted: Record<JobStatus, Job[]> = {} as Record<JobStatus, Job[]>;
 
-    statusColumns.forEach(column => {
-      const columnJobs = (jobsByStatus as Record<JobStatus, Job[]>)[column.id] || [];
-      sorted[column.id] = columnJobs.sort((a: Job, b: Job) => (a.position || 0) - (b.position || 0));
+    statusColumns.forEach((column) => {
+      const columnJobs =
+        (jobsByStatus as Record<JobStatus, Job[]>)[column.id] || [];
+      sorted[column.id] = columnJobs.sort(
+        (a: Job, b: Job) => (a.position || 0) - (b.position || 0)
+      );
     });
 
     return sorted;
@@ -163,11 +183,14 @@ export function JobKanbanBoard({
 
       newStatus = targetJob.status as JobStatus;
       const columnJobs = sortedJobsByStatus[newStatus] || [];
-      targetIndex = columnJobs.findIndex(job => job.id.toString() === overId);
+      targetIndex = columnJobs.findIndex((job) => job.id.toString() === overId);
 
       // If we're moving within the same column and to a lower position,
       // we need to adjust the target index
-      if (draggedJob.status === newStatus && draggedJob.position < targetJob.position) {
+      if (
+        draggedJob.status === newStatus &&
+        draggedJob.position < targetJob.position
+      ) {
         targetIndex = targetIndex;
       } else if (draggedJob.status === newStatus) {
         targetIndex = targetIndex;
@@ -180,8 +203,11 @@ export function JobKanbanBoard({
     if (draggedJob.status === newStatus) {
       // Moving within the same column - reorder
       const columnJobs = [...sortedJobsByStatus[newStatus]];
-      const oldIndex = columnJobs.findIndex(job => job.id === draggedJob.id);
-      const newIndex = targetIndex === -1 ? columnJobs.length - 1 : Math.min(targetIndex, columnJobs.length - 1);
+      const oldIndex = columnJobs.findIndex((job) => job.id === draggedJob.id);
+      const newIndex =
+        targetIndex === -1
+          ? columnJobs.length - 1
+          : Math.min(targetIndex, columnJobs.length - 1);
 
       if (oldIndex !== newIndex) {
         // Reorder the array
@@ -191,34 +217,44 @@ export function JobKanbanBoard({
         reorderedJobs.forEach((job, index) => {
           updates.push({
             id: job.id,
-            position: index + 1
+            position: index + 1,
           });
         });
       }
     } else {
       // Moving to a different column
-      const sourceColumnJobs = [...sortedJobsByStatus[draggedJob.status as JobStatus]];
+      const sourceColumnJobs = [
+        ...sortedJobsByStatus[draggedJob.status as JobStatus],
+      ];
       const targetColumnJobs = [...sortedJobsByStatus[newStatus]];
 
       // Remove from source column and update positions
-      const updatedSourceJobs = sourceColumnJobs.filter(job => job.id !== draggedJob.id);
+      const updatedSourceJobs = sourceColumnJobs.filter(
+        (job) => job.id !== draggedJob.id
+      );
       updatedSourceJobs.forEach((job, index) => {
         updates.push({
           id: job.id,
-          position: index + 1
+          position: index + 1,
         });
       });
 
       // Add to target column at the specified position
-      const insertIndex = targetIndex === -1 ? targetColumnJobs.length : Math.min(targetIndex, targetColumnJobs.length);
-      targetColumnJobs.splice(insertIndex, 0, { ...draggedJob, status: newStatus });
+      const insertIndex =
+        targetIndex === -1
+          ? targetColumnJobs.length
+          : Math.min(targetIndex, targetColumnJobs.length);
+      targetColumnJobs.splice(insertIndex, 0, {
+        ...draggedJob,
+        status: newStatus,
+      });
 
       // Update positions for target column jobs
       targetColumnJobs.forEach((job, index) => {
         updates.push({
           id: job.id,
           position: index + 1,
-          status: job.id === draggedJob.id ? newStatus : undefined
+          status: job.id === draggedJob.id ? newStatus : undefined,
         });
       });
     }
@@ -267,29 +303,48 @@ export function JobKanbanBoard({
     </div>
   );
 
-  if (jobs.isLoading || isPending) {
-    return (
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          {statusColumns.map((column) => (
-            <KanbanColumnSkeleton key={column.id} color={column.color} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Lamaran Kerja</h2>
         <AddJobDialog onSuccess={handleJobUpdated} />
       </div>
+
+      <div className="flex gap-2 mb-4 ">
+        <div className="relative max-w-lg flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            type="text"
+            placeholder="Cari berdasarkan nama perusahaan, posisi, atau catatan..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="pl-10 pr-10"
+          />
+          {searchTerm && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearSearch}
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {debouncedSearchTerm && (
+        <div className="text-sm text-gray-600 mb-2">
+          {jobs.data?.length === 0 ? (
+            <span>Tidak ada hasil untuk "{debouncedSearchTerm}"</span>
+          ) : (
+            <span>
+              Menampilkan {jobs.data?.length || 0} hasil untuk "
+              {debouncedSearchTerm}"
+            </span>
+          )}
+        </div>
+      )}
 
       <DndContext
         sensors={sensors}
@@ -298,21 +353,29 @@ export function JobKanbanBoard({
         onDragEnd={handleDragEnd}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          {statusColumns.map((column) => (
-            <KanbanColumn
-              key={column.id}
-              id={column.id}
-              title={column.title}
-              color={column.color}
-              jobs={sortedJobsByStatus[column.id] || []}
-              onJobUpdated={handleJobUpdated}
-            />
-          ))}
+          {jobs.isLoading || isPending
+            ? statusColumns.map((column) => (
+                <KanbanColumnSkeleton key={column.id} color={column.color} />
+              ))
+            : statusColumns.map((column) => (
+                <KanbanColumn
+                  key={column.id}
+                  id={column.id}
+                  title={column.title}
+                  color={column.color}
+                  jobs={sortedJobsByStatus[column.id] || []}
+                  onJobUpdated={handleJobUpdated}
+                />
+              ))}
         </div>
 
         <DragOverlay>
           {activeJob ? (
-            <JobCard job={activeJob as Job} isDragging={true} onJobUpdated={handleJobUpdated} />
+            <JobCard
+              job={activeJob as Job}
+              isDragging={true}
+              onJobUpdated={handleJobUpdated}
+            />
           ) : null}
         </DragOverlay>
       </DndContext>

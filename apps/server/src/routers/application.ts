@@ -1,24 +1,43 @@
 import z from "zod";
 import { protectedProcedure, router } from "../lib/trpc";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, or, like } from "drizzle-orm";
 import { db } from "../db";
 import { application } from "@/db/schema/application";
 
 export const applicationRouter = router({
   getListByUser: protectedProcedure
     .input(z.object({
-      includeArchived: z.boolean().optional().default(false)
+      includeArchived: z.boolean().optional().default(false),
+      search: z.string().optional()
     }).optional())
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const includeArchived = input?.includeArchived ?? false;
+      const searchQuery = input?.search?.trim();
 
-      const whereCondition = includeArchived
+      let whereCondition = includeArchived
         ? eq(application.userId, userId)
         : and(
             eq(application.userId, userId),
             eq(application.isArchived, false)
           );
+
+      // Add search functionality
+      if (searchQuery) {
+        const searchCondition = or(
+          like(application.companyName, `%${searchQuery}%`),
+          like(application.position_title, `%${searchQuery}%`),
+          like(application.notes, `%${searchQuery}%`)
+        );
+
+        whereCondition = includeArchived
+          ? and(eq(application.userId, userId), searchCondition)
+          : and(
+              eq(application.userId, userId),
+              eq(application.isArchived, false),
+              searchCondition
+            );
+      }
 
       return await db.select().from(application)
         .where(whereCondition)
@@ -27,20 +46,61 @@ export const applicationRouter = router({
 
   getAll: protectedProcedure
     .input(z.object({
-      archived: z.boolean().optional().default(false)
+      archived: z.boolean().optional().default(false),
+      search: z.string().optional(),
+      page: z.number().optional().default(0),
+      pageSize: z.number().optional().default(10)
     }).optional())
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const archived = input?.archived ?? false;
+      const searchQuery = input?.search?.trim();
+      const page = input?.page ?? 0;
+      const pageSize = Math.min(input?.pageSize ?? 10, 100); // Limit max page size to 100
+      const offset = page * pageSize;
 
-      const whereCondition = and(
+      let whereCondition = and(
         eq(application.userId, userId),
         eq(application.isArchived, archived)
       );
 
-      return await db.select().from(application)
+      // Add search functionality
+      if (searchQuery) {
+        const searchCondition = or(
+          like(application.companyName, `%${searchQuery}%`),
+          like(application.position_title, `%${searchQuery}%`),
+          like(application.notes, `%${searchQuery}%`)
+        );
+
+        whereCondition = and(
+          eq(application.userId, userId),
+          eq(application.isArchived, archived),
+          searchCondition
+        );
+      }
+
+      // Get total count for pagination
+      const totalCountResult = await db.select({ count: application.id })
+        .from(application)
+        .where(whereCondition);
+      const totalCount = totalCountResult.length;
+
+      // Get paginated data
+      const data = await db.select().from(application)
         .where(whereCondition)
-        .orderBy(asc(application.appliedDate));
+        .orderBy(asc(application.appliedDate))
+        .limit(pageSize)
+        .offset(offset);
+
+      return {
+        data,
+        pagination: {
+          page,
+          pageSize,
+          totalCount,
+          totalPages: Math.ceil(totalCount / pageSize)
+        }
+      };
     }),
 
   create: protectedProcedure
