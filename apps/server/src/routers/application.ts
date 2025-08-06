@@ -18,7 +18,7 @@ export const applicationRouter = router({
     .input(z.object({
       companyName: z.string().min(1),
       positionTitle: z.string().min(1),
-      status: z.enum(["applied", "interviewing", "offering", "rejected", "withdrawn"]),
+      status: z.enum(["applied", "interviewing", "offering", "accepted", "rejected", "withdrawn"]),
       appliedDate: z.string().min(1),
       jobPostUrl: z.string().optional(),
       notes: z.string().optional(),
@@ -55,7 +55,7 @@ export const applicationRouter = router({
       id: z.number(),
       companyName: z.string().min(1).optional(),
       positionTitle: z.string().min(1).optional(),
-      status: z.enum(["applied", "interviewing", "offering", "rejected", "withdrawn"]).optional(),
+      status: z.enum(["applied", "interviewing", "offering", "accepted", "rejected", "withdrawn"]).optional(),
       appliedDate: z.string().min(1).optional(),
       jobPostUrl: z.string().optional(),
       notes: z.string().optional(),
@@ -81,7 +81,7 @@ export const applicationRouter = router({
     .input(z.array(z.object({
       id: z.number(),
       position: z.number(),
-      status: z.enum(["applied", "interviewing", "offering", "rejected", "withdrawn"]).optional(),
+      status: z.enum(["applied", "interviewing", "offering", "accepted", "rejected", "withdrawn"]).optional(),
     })))
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.session.user.id;

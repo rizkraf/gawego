@@ -13,18 +13,14 @@ import {
 import { trpc } from '@/utils/trpc';
 import { useMutation } from '@tanstack/react-query';
 import type { Job } from './job-kanban-board';
+import { Pencil } from 'lucide-react';
 
 interface EditJobDialogProps {
   job: Job;
-  children: React.ReactNode;
   onSuccess: () => void;
 }
 
-export function EditJobDialog({
-  job,
-  children,
-  onSuccess,
-}: EditJobDialogProps) {
+export function EditJobDialog({ job, onSuccess }: EditJobDialogProps) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     companyName: job.companyName,
@@ -61,7 +57,18 @@ export function EditJobDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 hover:bg-primary/10 hover:text-primary"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Ubah Lamaran Kerja</DialogTitle>

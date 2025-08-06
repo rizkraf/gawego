@@ -3,7 +3,13 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, ExternalLink, Building2, GripVertical, Trash } from 'lucide-react';
+import {
+  Calendar,
+  ExternalLink,
+  Building2,
+  GripVertical,
+  Trash,
+} from 'lucide-react';
 import { EditJobDialog } from './edit-job-dialog';
 import type { Job } from './job-kanban-board';
 import { useMutation } from '@tanstack/react-query';
@@ -50,23 +56,26 @@ export function JobCard({
       applied: 'Dilamar',
       interviewing: 'Wawancara',
       offering: 'Tawaran',
+      accepted: 'Diterima',
       rejected: 'Ditolak',
       withdrawn: 'Dibatalkan',
     };
 
-    return statusTranslations[status as keyof typeof statusTranslations] || status;
+    return (
+      statusTranslations[status as keyof typeof statusTranslations] || status
+    );
   };
 
   const status = job.status || 'applied';
 
   const deleteJobMutation = useMutation(
-      trpc.application.delete.mutationOptions({
-        onSuccess: () => {
-          onJobUpdated();
-          setNodeRef(null);
-        },
-      })
-    );
+    trpc.application.delete.mutationOptions({
+      onSuccess: () => {
+        onJobUpdated();
+        setNodeRef(null);
+      },
+    })
+  );
 
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this job application?')) {
@@ -76,23 +85,24 @@ export function JobCard({
 
   return (
     <div ref={setNodeRef} style={style} className="relative">
-      <EditJobDialog job={job} onSuccess={onJobUpdated}>
-        <Card className="cursor-pointer group">
-          <div className="p-4 flex items-center justify-between">
+      <Card className="group">
+        <div className="p-4 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-6 cursor-grab active:cursor-grabbing "
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-3 w-3" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <EditJobDialog job={job} onSuccess={onJobUpdated} />
             <Button
               variant="ghost"
               size="icon"
-              className="size-6 cursor-grab active:cursor-grabbing "
-              {...attributes}
-              {...listeners}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <GripVertical className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className='size-6 hover:bg-red-100 hover:text-red-600'
+              className="size-6 hover:bg-red-100 hover:text-red-600"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDelete();
@@ -101,53 +111,53 @@ export function JobCard({
               <Trash className="h-4 w-4" />
             </Button>
           </div>
-          <CardHeader className="pb-2 pt-0">
-            <div className="flex items-start justify-between">
-              <CardTitle className="text-sm font-medium line-clamp-2 flex-1 pr-2">
-                {job.position_title}
-              </CardTitle>
-              <Badge
-                variant="secondary"
-                className={`text-xs ${statusColors[status as keyof typeof statusColors]}`}
+        </div>
+        <CardHeader className="pb-2 pt-0">
+          <div className="flex items-start justify-between">
+            <CardTitle className="text-sm font-medium line-clamp-2 flex-1 pr-2">
+              {job.position_title}
+            </CardTitle>
+            <Badge
+              variant="secondary"
+              className={`text-xs ${statusColors[status as keyof typeof statusColors]}`}
+            >
+              {translateStatus(status)}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-2">
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Building2 className="h-3 w-3" />
+            <span className="truncate">{job.companyName}</span>
+          </div>
+
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            <span>{job.appliedDate}</span>
+          </div>
+
+          {job.jobPostUrl && (
+            <div className="flex items-center gap-1 text-xs text-primary">
+              <ExternalLink className="h-3 w-3" />
+              <a
+                href={job.jobPostUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline truncate"
+                onClick={(e) => e.stopPropagation()}
               >
-                {translateStatus(status)}
-              </Badge>
+                View Job Post
+              </a>
             </div>
-          </CardHeader>
-          <CardContent className="pt-0 space-y-2">
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Building2 className="h-3 w-3" />
-              <span className="truncate">{job.companyName}</span>
+          )}
+
+          {job.notes && (
+            <div className="text-xs text-muted-foreground line-clamp-2 mt-2">
+              {job.notes}
             </div>
-
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
-              <span>{job.appliedDate}</span>
-            </div>
-
-            {job.jobPostUrl && (
-              <div className="flex items-center gap-1 text-xs text-primary">
-                <ExternalLink className="h-3 w-3" />
-                <a
-                  href={job.jobPostUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline truncate"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  View Job Post
-                </a>
-              </div>
-            )}
-
-            {job.notes && (
-              <div className="text-xs text-muted-foreground line-clamp-2 mt-2">
-                {job.notes}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </EditJobDialog>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

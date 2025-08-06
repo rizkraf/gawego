@@ -26,6 +26,7 @@ export type JobStatus =
   | 'applied'
   | 'interviewing'
   | 'offering'
+  | 'accepted'
   | 'rejected'
   | 'withdrawn';
 
@@ -51,6 +52,7 @@ const statusColumns: { id: JobStatus; title: string; color: string }[] = [
     color: 'bg-yellow-50 border-yellow-200',
   },
   { id: 'offering', title: 'Tawaran', color: 'bg-green-50 border-green-200' },
+  { id: 'accepted', title: 'Diterima', color: 'bg-purple-50 border-purple-200' },
   { id: 'rejected', title: 'Ditolak', color: 'bg-red-50 border-red-200' },
   { id: 'withdrawn', title: 'Dibatalkan', color: 'bg-gray-50 border-gray-200' },
 ];
@@ -246,7 +248,7 @@ export function JobKanbanBoard() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           {statusColumns.map((column) => (
             <KanbanColumn
               key={column.id}
