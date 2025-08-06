@@ -1,9 +1,9 @@
 import * as React from "react"
 import {
+  Archive,
   LayoutGrid,
   Send,
   SendHorizontal,
-  Settings,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -32,9 +32,9 @@ const data = {
       icon: SendHorizontal,
     },
     {
-      title: "Pengaturan",
-      url: "/dashboard/settings",
-      icon: Settings,
+      title: "Arsip",
+      url: "/dashboard/archive",
+      icon: Archive,
     }
   ],
 }

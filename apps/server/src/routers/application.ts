@@ -1,4 +1,3 @@
-
 import z from "zod";
 import { protectedProcedure, router } from "../lib/trpc";
 import { eq, and, asc } from "drizzle-orm";
@@ -24,6 +23,24 @@ export const applicationRouter = router({
       return await db.select().from(application)
         .where(whereCondition)
         .orderBy(asc(application.position));
+    }),
+
+  getAll: protectedProcedure
+    .input(z.object({
+      archived: z.boolean().optional().default(false)
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const archived = input?.archived ?? false;
+
+      const whereCondition = and(
+        eq(application.userId, userId),
+        eq(application.isArchived, archived)
+      );
+
+      return await db.select().from(application)
+        .where(whereCondition)
+        .orderBy(asc(application.appliedDate));
     }),
 
   create: protectedProcedure
