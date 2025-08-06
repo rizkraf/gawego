@@ -4,16 +4,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import {
   Calendar,
   ExternalLink,
   Building2,
   GripVertical,
   Trash,
+  Edit,
+  Archive,
+  MoreHorizontal,
 } from 'lucide-react';
 import { EditJobDialog } from './edit-job-dialog';
 import type { Job } from './job-kanban-board';
 import { useMutation } from '@tanstack/react-query';
 import { trpc } from '@/utils/trpc';
+import { useState } from 'react';
 
 interface JobCardProps {
   job: Job;
@@ -77,41 +89,95 @@ export function JobCard({
     })
   );
 
+  const archiveJobMutation = useMutation(
+    trpc.application.archive.mutationOptions({
+      onSuccess: () => {
+        onJobUpdated();
+      },
+    })
+  );
+
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this job application?')) {
-      deleteJobMutation.mutate({ id: job.id });
-    }
+    deleteJobMutation.mutate({ id: job.id });
+    setIsDeleteDialogOpen(false);
+  };
+
+  const handleArchive = () => {
+    const isCurrentlyArchived = job.isArchived || false;
+    archiveJobMutation.mutate({
+      id: job.id,
+      isArchived: !isCurrentlyArchived
+    });
+    setIsArchiveDialogOpen(false);
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="relative">
-      <Card className="group">
-        <div className="p-4 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-6 cursor-grab active:cursor-grabbing "
-            {...attributes}
-            {...listeners}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="h-3 w-3" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <EditJobDialog job={job} onSuccess={onJobUpdated} />
+    <>
+      <div ref={setNodeRef} style={style} className="relative">
+        <Card className="group">
+          <div className="p-4 flex items-center justify-between">
             <Button
               variant="ghost"
               size="icon"
-              className="size-6 hover:bg-red-100 hover:text-red-600"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete();
-              }}
+              className="size-6 cursor-grab active:cursor-grabbing "
+              {...attributes}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
             >
-              <Trash className="h-4 w-4" />
+              <GripVertical className="h-3 w-3" />
             </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditDialogOpen(true);
+                  }}
+                >
+                  <Edit className="h-4 w-4" />
+                  Ubah
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsArchiveDialogOpen(true);
+                  }}
+                >
+                  <Archive className="h-4 w-4" />
+                  {job.isArchived ? 'Pulihkan' : 'Arsipkan'}
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDeleteDialogOpen(true);
+                  }}
+                >
+                  <Trash className="h-4 w-4" />
+                  Hapus
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
         <CardHeader className="pb-2 pt-0">
           <div className="flex items-start justify-between">
             <CardTitle className="text-sm font-medium line-clamp-2 flex-1 pr-2">
@@ -159,5 +225,36 @@ export function JobCard({
         </CardContent>
       </Card>
     </div>
+
+    <EditJobDialog
+      job={job}
+      onSuccess={onJobUpdated}
+      open={isEditDialogOpen}
+      onOpenChange={setIsEditDialogOpen}
+    />
+
+    <ConfirmDialog
+      open={isDeleteDialogOpen}
+      onOpenChange={setIsDeleteDialogOpen}
+      title="Hapus Lamaran Kerja"
+      description="Apakah Anda yakin ingin menghapus lamaran kerja ini? Tindakan ini tidak dapat dibatalkan."
+      confirmText="Hapus"
+      onConfirm={handleDelete}
+      variant="destructive"
+    />
+
+    <ConfirmDialog
+      open={isArchiveDialogOpen}
+      onOpenChange={setIsArchiveDialogOpen}
+      title={job.isArchived ? 'Pulihkan Lamaran Kerja' : 'Arsipkan Lamaran Kerja'}
+      description={
+        job.isArchived
+          ? 'Apakah Anda yakin ingin memulihkan lamaran kerja ini dari arsip?'
+          : 'Apakah Anda yakin ingin mengarsipkan lamaran kerja ini?'
+      }
+      confirmText={job.isArchived ? 'Pulihkan' : 'Arsipkan'}
+      onConfirm={handleArchive}
+    />
+  </>
   );
 }

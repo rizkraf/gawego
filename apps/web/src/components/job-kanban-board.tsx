@@ -40,6 +40,7 @@ export interface Job {
   appliedDate: string;
   jobPostUrl: string | null;
   position: number;
+  isArchived: boolean | null;
   createdAt: string;
   updatedAt: string;
   notes: string | null;

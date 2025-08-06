@@ -17,10 +17,16 @@ import { JobForm, type JobFormData } from './job-form';
 interface EditJobDialogProps {
   job: Job;
   onSuccess: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function EditJobDialog({ job, onSuccess }: EditJobDialogProps) {
-  const [open, setOpen] = useState(false);
+export function EditJobDialog({ job, onSuccess, open: externalOpen, onOpenChange }: EditJobDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  // Use external control if provided, otherwise use internal state
+  const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
 
   const updateJobMutation = useMutation(
     trpc.application.update.mutationOptions({
@@ -55,19 +61,21 @@ export function EditJobDialog({ job, onSuccess }: EditJobDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-6 hover:bg-primary/10 hover:text-primary"
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
+      {externalOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-6 hover:bg-primary/10 hover:text-primary"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Ubah Lamaran Kerja</DialogTitle>

@@ -10,6 +10,7 @@ export const application = mysqlTable("application", {
   appliedDate: varchar("applied_date", { length: 50 }).notNull(),
   jobPostUrl: varchar("job_post_url", { length: 255 }),
   position: int("position").notNull().default(0),
+  isArchived: boolean("is_archived").default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   notes: varchar("notes", { length: 500 }).default(""),

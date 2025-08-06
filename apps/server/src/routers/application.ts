@@ -7,10 +7,22 @@ import { application } from "@/db/schema/application";
 
 export const applicationRouter = router({
   getListByUser: protectedProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({
+      includeArchived: z.boolean().optional().default(false)
+    }).optional())
+    .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
+      const includeArchived = input?.includeArchived ?? false;
+
+      const whereCondition = includeArchived
+        ? eq(application.userId, userId)
+        : and(
+            eq(application.userId, userId),
+            eq(application.isArchived, false)
+          );
+
       return await db.select().from(application)
-        .where(eq(application.userId, userId))
+        .where(whereCondition)
         .orderBy(asc(application.position));
     }),
 
@@ -106,5 +118,17 @@ export const applicationRouter = router({
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       return await db.delete(application).where(eq(application.id, input.id));
+    }),
+
+  archive: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      isArchived: z.boolean()
+    }))
+    .mutation(async ({ input }) => {
+      return await db
+        .update(application)
+        .set({ isArchived: input.isArchived })
+        .where(eq(application.id, input.id));
     }),
 });
